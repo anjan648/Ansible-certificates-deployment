@@ -16,10 +16,7 @@ Objectives
 •	Support large-scale rollout across hundreds of systems
 ________________________________________
 Certificates Deployed
-The following certificates are deployed to all target servers:
-•	ALSTOMINFRASTRUCTUREcert_Intermediate.pem
-•	AlstomManagementCA.pem
-•	ALSTOMRootCertificationAuthorityv2.cacert.pem
+The certificates are deployed to all target servers:
 These certificates are required to establish internal trust chains and secure communications.
 ________________________________________
 Target Directory Structure
