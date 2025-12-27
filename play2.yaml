@@ -1,0 +1,62 @@
+---
+- name: Copy certificates with conditional destination
+  hosts: all
+  become: true
+  gather_facts: false
+  #serial: 1
+  vars:
+    cert_files:
+      - ALSTOMINFRASTRUCTUREcert_Intermediate.pem
+      - AlstomManagementCA.pem
+      - ALSTOMRootCertificationAuthorityv2.cacert.pem
+    dest_base: ""
+
+  tasks:
+    - name: Check if /etc/pki exists
+      stat:
+        path: /etc/pki
+      register: etc_pki_stat
+
+    - name: Set destination base when /etc/pki exists
+      set_fact:
+        dest_base: /etc/pki/new_pki
+      when: etc_pki_stat.stat.exists and etc_pki_stat.stat.isdir
+
+    - name: Set destination base when /etc/pki does not exist
+      set_fact:
+        dest_base: /var/tmp/pki
+      when: not (etc_pki_stat.stat.exists and etc_pki_stat.stat.isdir)
+
+    - name: Create destination directory
+      file:
+        path: "{{ dest_base }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Copy certificates to destination
+      copy:
+        src: "{{ item }}"
+        dest: "{{ dest_base }}/{{ item }}"
+        owner: root
+        group: root
+        mode: "0644"
+      loop: "{{ cert_files }}"
+
+    - name: Verify copied certificates
+      stat:
+        path: "{{ dest_base }}/{{ item }}"
+      loop: "{{ cert_files }}"
+      register: copied_stats
+
+    - name: Fail if any certificate failed to copy
+      fail:
+        msg: "Certificate {{ item.stat.path | default('unknown') }} is missing or not readable."
+      loop: "{{ copied_stats.results }}"
+      when: >
+        not (
+          item.stat is defined
+          and item.stat.exists
+          and item.stat.mode is not none
+        )

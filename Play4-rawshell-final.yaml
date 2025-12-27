@@ -1,0 +1,65 @@
+- name: Copy certs to /home/dxcadmin and move to /etc/pki/new_pki using scp + bash
+  hosts: all
+  serial: 1
+  gather_facts: false
+  vars:
+    remote_user: dxcadmin
+    cert_files:
+      - ALSTOMINFRASTRUCTUREcert_Intermediate.pem
+      - AlstomManagementCA.pem
+      - ALSTOMRootCertificationAuthorityv2.cacert.pem
+
+  tasks:
+    - name: Copy certs to /home/dxcadmin on each host via scp
+      shell: |
+        scp -o StrictHostKeyChecking=no {{ cert_files | map('regex_replace', '^(.*)$', playbook_dir ~ '/files/\1') | join(' ') }} {{ remote_user }}@{{ inventory_hostname }}:/home/dxcadmin/
+      delegate_to: localhost
+
+    - name: Create /etc/pki/new_pki and move certs
+      become: true
+      shell: |
+        if [ ! -d /etc/pki ]; then
+          mkdir -p /etc/pki
+        fi
+        mkdir -p /etc/pki/new_pki
+        chmod 755 /etc/pki/new_pki
+        mv /home/{{ remote_user }}/*.pem /etc/pki/new_pki/
+        chmod 644 /etc/pki/new_pki/*.pem
+        chown root:root /etc/pki/new_pki/*.pem
+
+
+
+
+
+# ===============================================================================
+
+- name: Copy certs to /home/dxcadmin and move to /etc/pki/new_pki using scp + bash
+  hosts: all
+  serial: 1
+  gather_facts: false
+  vars:
+    remote_user: dxcadmin
+    cert_files:
+      - ALSTOMINFRASTRUCTUREcert_Intermediate.pem
+      - AlstomManagementCA.pem
+      - ALSTOMRootCertificationAuthorityv2.cacert.pem
+
+  tasks:
+    - name: Copy certs to /home/dxcadmin on each host via scp
+      shell: |
+        scp -o StrictHostKeyChecking=no {{ cert_files | map('regex_replace', '^(.*)$', playbook_dir ~ '/files/\1') | join(' ') }} {{ remote_user }}@{{ inventory_hostname }}:/home/dxcadmin/
+      delegate_to: localhost
+      ignore_errors: true
+
+    - name: Create /etc/pki/new_pki and move certs
+      become: true
+      shell: |
+        if [ ! -d /etc/pki ]; then
+          mkdir -p /etc/pki
+        fi
+        mkdir -p /etc/pki/new_pki
+        chmod 755 /etc/pki/new_pki
+        mv /home/{{ remote_user }}/*.pem /etc/pki/new_pki/ 2>/dev/null || true
+        chmod 644 /etc/pki/new_pki/*.pem 2>/dev/null || true
+        chown root:root /etc/pki/new_pki/*.pem 2>/dev/null || true
+      ignore_errors: true

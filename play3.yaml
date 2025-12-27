@@ -1,0 +1,68 @@
+---
+- name: Copy certificates to /etc/pki/new_pki
+  hosts: all
+  become: true
+  gather_facts: false
+
+  vars:
+    cert_files:
+      - ALSTOMINFRASTRUCTUREcert_Intermediate.pem
+      - AlstomManagementCA.pem
+      - ALSTOMRootCertificationAuthorityv2.cacert.pem
+    etc_pki_path: /etc/pki
+    dest_path: /etc/pki/new_pki
+
+  tasks:
+    - name: Check if /etc/pki exists
+      stat:
+        path: "{{ etc_pki_path }}"
+      register: etc_pki_stat
+
+    - name: Create /etc/pki if it does not exist
+      file:
+        path: "{{ etc_pki_path }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      when: not (etc_pki_stat.stat.exists and etc_pki_stat.stat.isdir)
+
+    - name: Create /etc/pki/new_pki directory
+      file:
+        path: "{{ dest_path }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Copy certificates to /etc/pki/new_pki
+      copy:
+        src: "{{ item }}"
+        dest: "{{ dest_path }}/{{ item }}"
+        owner: root
+        group: root
+        mode: "0644"
+      loop: "{{ cert_files }}"
+
+    - name: Verify copied certificates
+      stat:
+        path: "{{ dest_path }}/{{ item }}"
+      loop: "{{ cert_files }}"
+      register: copied_stats
+
+    - name: Check if all certificates are copied correctly
+      block:
+        - name: Fail if any certificate failed to copy
+          fail:
+            msg: "Certificate {{ item.stat.path | default('unknown') }} is missing or not readable."
+          loop: "{{ copied_stats.results }}"
+          when: >
+            not (
+              item.stat is defined and
+              item.stat.exists and
+              item.stat.mode is not none
+            )
+      rescue:
+        - name: Mark host as failed but continue with others
+          debug:
+            msg: "One or more certificates are missing on this host. Skipping..."
